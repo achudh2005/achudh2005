@@ -1,0 +1,38 @@
+name: Auto-Refresh Profile Stats & Clear Camo Cache
+
+on:
+  schedule:
+    # Runs every 2 hours to keep stats fresh automatically
+    - cron: '0 */2 * * *'
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  refresh-cache:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Profile and Purge GitHub Camo Cache
+        run: |
+          echo "Fetching profile HTML from https://github.com/achudh2005..."
+          HTML=$(curl -s -L "https://github.com/achudh2005")
+          
+          # Extract all Camo proxy URLs used on the profile page
+          CAMO_URLS=$(echo "$HTML" | grep -o 'https://camo\.githubusercontent\.com/[a-f0-9]*/[a-f0-9]*' | sort -u)
+          
+          if [ -z "$CAMO_URLS" ]; then
+            echo "No camo URLs found."
+            exit 0
+          fi
+          
+          echo "Found Camo URLs to purge:"
+          echo "$CAMO_URLS"
+          
+          echo "$CAMO_URLS" | while read -r url; do
+            if [ -n "$url" ]; then
+              echo "Purging: $url"
+              curl -s -X PURGE "$url" || true
+            fi
+          done
+          echo "Camo cache purge completed successfully!"
